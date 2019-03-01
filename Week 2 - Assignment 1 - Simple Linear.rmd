@@ -1,0 +1,128 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Mack Ford
+##Assignment One - Simple Linear Regression & Correlation
+###1/28/2019
+
+
+
+```{r}
+library(tidyverse)
+#install.packages("GGally")
+library(GGally)
+
+#Task 1
+air <-airquality
+glimpse(air)
+summary(air)
+```
+
+a. This data describes air quality. It contains month, day, Temp, wind, Solar R, and Ozone 
+
+b. This data set contains 153 observations and 6 Variables
+
+c. Yes there are missing variables, in Ozone and Solar R
+
+d. Ozone is most likely to be the response variable. 
+
+```{r}
+#Task 2
+#deleting the data 
+air2 = air %>% filter(!is.na(Ozone)) %>% filter(!is.na(Solar.R))
+```
+
+Now that we have deleted the NA we only have 111 observations. 
+
+```{r}
+# Task 3
+ggpairs(air2)
+
+ggcorr(air2, label = TRUE)
+```
+
+a. Temperature is the strognest correlated variable with Ozone
+b. Day has the least strongest correlation with Ozone
+
+```{r}
+#Task 4 - Plotting temp and Ozone
+
+ggplot(air2, aes(Temp, Ozone)) +
+  geom_point()+labs(title ="Temp Vs. Ozone") + 
+  geom_smooth(method = "lm", se = FALSE, color = "red")+theme_bw()
+```
+
+Temperature vs. Ozone - The data has a positive correlation (.7). We can see that in the scatterplot that there is an upward trend.
+
+```{r}
+#Task 5 Linear Model
+model1<- lm(Ozone~Temp,air2)
+#Summary tells you the P value, intercepts, and R^2
+summary(model1)
+
+
+```
+
+R^2 Value of .48, and a Pvalue or less than .05. The Pvalue lets us know that Temp is a significant predictor of Ozone. The R squared value of .48 shows that it is a decent model, but it could be improved. 
+
+```{r}
+#Task 5 Cont. 
+confint(model1)
+```
+
+With a 95% confidence we can say the slop will land between 1.96 and 2.91
+
+```{r}
+#Task6 - Repeat 4
+ggplot(air2, aes(Temp, Ozone)) +
+  geom_point()+labs(title ="Temp Vs. Ozone") + 
+  geom_smooth(method = "lm", se = FALSE, color = "red") +theme_bw()
+```
+
+```{r}
+#Task 7 
+#doing the Predicting
+Testdata<-data.frame(Temp =c(80))
+predict(model1, newdata = Testdata, interval = "predict")
+#Prediction Intervals to the original Data Set
+temp_var<-predict(model1, interval = "prediction")
+new_df<-cbind(air2, temp_var)
+```
+
+we are predicting that with a temperatrue of 80 we will have an Ozone of 47.48. lower and Upper prediction iterval for the temperature is: lower = -.15 & Upper = 95.11
+
+
+```{r}
+#Task 8
+ggplot(air2, aes(Day, Ozone))+
+  geom_point() + labs(title = "Day vs. Ozone") + 
+  geom_smooth(method = "lm", se = FALSE, color = "red") + theme_bw()
+```
+
+The relationship between Day and Ozone does not seem to be correlated. Our trend line is almost 0.
+
+```{r}
+#Task 9
+model2<- lm(Ozone~Day, air2)
+summary(model2)
+```
+
+based off the summary of model 2. We have a poor RSquared value, but we do have a p-value that is less that .05 which tells us we have a significant predictor of Ozone. 
+
+```{r}
+#Task 9 Cont
+confint(model2)
+```
+
+The slope will typically fall between -.74 and .70
+
+
+```{r}
+#Task 10 
+ggplot(air2, aes(Day, Ozone))+
+  geom_point() + labs(title = "Day vs. Ozone") + 
+  geom_smooth(method = "lm", se = FALSE, color = "red") + theme_bw()
+```
+

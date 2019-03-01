@@ -1,0 +1,203 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Mack Ford
+
+## Cluster Assignment Answer
+
+### 3/1/2019
+
+
+```{r}
+# install.packages('cluster')
+# install.packages('factoextra')
+# install.packages('dendextend')
+# install.packages("tidyverse")
+library(tidyverse)
+library(cluster)
+library(factoextra)
+library(dendextend)
+
+#reading in the dataset
+trucks <- read.csv("trucks.csv")
+summary(trucks)
+```
+
+```{r}
+relationshipPlot1 <- ggplot(trucks, aes(Distance, Speeding)) + geom_point() +labs(title = "distance by speed", x = "distance", y = "speed") + theme_bw()
+relationshipPlot1
+```
+
+
+- There seems to be a nonlinear relationship between distance and speed.there seems to be some natural clustering with speed and distance. I can see potentailly 4 clusters
+
+
+    - Cluster 1 = Distance under 100 and speed under 15
+    
+    
+    - Cluster 2 = Distance under 100 and speed over 15
+    
+    
+    - Cluster 3 = Distance over 100 and speed under 25
+    
+    
+    - Cluster 4 = distance over 100 and speed over 25
+    
+    
+
+```{r}
+#Task 2 new df and scaling
+
+trucks2 <- select(trucks, "Distance", "Speeding")
+trucks2_Scaled <- as.data.frame(scale(trucks2))
+summary(trucks2_Scaled)
+```
+
+
+```{r}
+#Task 3 cluster
+set.seed(1234)
+clusters1 <- kmeans(trucks2_Scaled, 2)
+#visualize the clusters
+fviz_cluster(clusters1, trucks2_Scaled)
+```
+
+
+
+- From this diagram we see two natural clusters. Looks like it fits to:
+
+
+    - Cluster 1 = distance under 1 and speed under ~4
+    
+    
+    - Cluster 2 = distance above 1 and speed under ~7
+    
+    
+```{r}
+#Task 4 - Optimizing with two methods: wss and silhouette
+set.seed(123)
+fviz_nbclust(trucks2_Scaled, kmeans, method = "wss") 
+
+#second method
+set.seed(123)
+fviz_nbclust(trucks2_Scaled, kmeans, method = "silhouette") 
+
+```
+
+
+
+- According to both methods, it looks as if the optimal number of clusters is 4 or maybe 5
+
+
+```{r}
+#Task 5 using the optimal number of clusters (4)
+set.seed(1234)
+clusters2 <- kmeans(trucks2_Scaled, 4)
+#visualize the clusters
+fviz_cluster(clusters2, trucks2_Scaled)
+
+
+
+```
+
+
+
+- These cluster groups look to be around what I described in task 2. The clusters seem to group as follows:
+
+
+    - Cluster 1 = Distance under 1 and speed under 1
+    
+    
+    - Cluster 2 = Distance under 1 and speed over 1
+    
+    
+    - Cluster 3 = Distance over 1 and speed under 2
+    
+    
+    - Cluster 4 = distance over 1 and speed over 2
+
+
+Now we will begin analysis on the wine price dataset
+
+```{r}
+wine <- read.csv("wineprice.csv")
+summary(wine)
+
+wine2 <- select(wine,-c("Year", "FrancePop"))
+summary(wine2)
+```
+
+
+- This dataset has no missing data so we only need to scale the dataset
+
+```{r}
+wine2_Scaled<- as.data.frame(scale(wine2))
+summary(wine2_Scaled)
+```
+
+
+```{r}
+#Task 7 - Optimal clusters
+set.seed(123)
+fviz_nbclust(wine2_Scaled, kmeans, method = "wss") 
+
+#second method
+set.seed(123)
+fviz_nbclust(wine2_Scaled, kmeans, method = "silhouette") 
+```
+
+
+- The wss method is a little harder to tell what the optimal number of clusters is. If we take a look at the silhouette method, we can tell the optimal number of clusters is 5. Looking back at the wss model 5 does look like a reasonable number as we can start to see leveling.
+
+
+
+```{r}
+#Task 8 
+set.seed(1234)
+WineCluster <- kmeans(wine2_Scaled,5)
+#visualize the clusters
+fviz_cluster(WineCluster, wine2_Scaled)
+```
+
+
+- Cluster 4 and 5 are overlapping a bit, this makes me think that we could maybe have gone with 4 clusters and extending cluster 2 and cluster 4 to include some of cluster 5's points.
+
+
+Onto task 9 and 10 
+
+
+```{r}
+#Task 9 
+m = c( "average", "single", "complete", "ward")
+names(m) = c( "average", "single", "complete", "ward")
+
+ac = function(x) {
+  agnes(wine2_Scaled, method = x)$ac
+}
+map_dbl(m, ac)
+
+```
+
+Ward is the highest, so we will use this to develop our clusters.
+
+
+```{r}
+#Task 9 cont.
+agglomDend = agnes(wine2_Scaled, method = "ward")
+pltree(agglomDend, cex = 0.6, hang = -1, main = "Agglomerative Dendrogram") 
+
+```
+
+
+Now we will do the same, but with divisive clustering
+
+
+```{r}
+#Task 10
+DivisiveDend = diana(wine2_Scaled)
+pltree(DivisiveDend, cex = 0.6, hang = -1, main = "Divisive Dendogram")
+
+```
+

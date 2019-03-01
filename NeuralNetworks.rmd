@@ -1,0 +1,182 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Mack Ford
+
+## Neural Assignment - Answer
+
+### 2/19/19
+
+
+
+```{r}
+library(tidyverse)
+# installed.packages()
+# install.packages('caret')
+# install.packages('nnet')
+library(caret)
+library(nnet)
+```
+
+
+```{r}
+#Reading in the dataset
+parole<-read.csv("parole.csv")
+
+#Converting into factors and renaming variables
+parole = parole %>% mutate(male = as_factor(as.factor(male))) %>%
+mutate(male = fct_recode(male,
+"female" = "0",
+"male" = "1"))
+
+#race
+parole = parole %>% mutate(race = as_factor(as.factor(race))) %>%
+mutate(race = fct_recode(race,
+"white" = "1",
+"other" = "2"))
+
+#state
+parole = parole %>% mutate(state = as_factor(as.factor(state))) %>%
+mutate(state = fct_recode(state,
+"other" = "1",
+"Kentucky" = "2",
+"Louisiana" = "3",
+"Virginia" = "4"))
+
+#crime
+parole = parole %>% mutate(crime = as_factor(as.factor(crime))) %>%
+mutate(crime = fct_recode(crime,
+"other" = "1",
+"Larceny" = "2",
+"durg-related" = "3",
+"driving-related" = "4"))
+
+#multiple offenses
+parole = parole %>% mutate(multiple.offenses = as_factor(as.factor(multiple.offenses))) %>%
+mutate(multiple.offenses = fct_recode(multiple.offenses,
+"other" = "0",
+"multiple" = "1"))
+
+#violator
+parole = parole %>% mutate(violator = as_factor(as.factor(violator))) %>%
+mutate(violator = fct_recode(violator,
+"No Violation" = "0",
+"Violation" = "1"))
+
+#Task1 - Splitting the data
+train.rows <- createDataPartition(y=parole$violator, p=0.7, list = FALSE)
+set.seed(12345)
+train<- parole[train.rows,]
+test <- parole[-train.rows,]
+
+```
+
+
+
+```{r}
+# Task 2
+
+#creating a neural network, 10 fold k fold cross validation
+start_time = Sys.time() #for timing
+fitControl = trainControl(method = "cv", 
+                           number = 10)
+
+nnetGrid <-  expand.grid(size = 12, decay = 0.1)
+
+set.seed(1234)
+nnetBasic = train(violator ~ ., 
+                 train,
+                 method = "nnet",
+                 tuneGrid = nnetGrid,
+                 trControl = fitControl,
+                 verbose = FALSE,
+                 trace = FALSE)
+
+end_time = Sys.time()
+end_time-start_time
+
+nnetBasic
+```
+
+
+
+```{r}
+#Task 3 develop predictions on the training set
+predNetBasic = predict(nnetBasic, train)
+head(predNetBasic)
+
+confusionMatrix(predNetBasic,train$violator, positive = "Violation")
+
+```
+
+
+Looking at the confusion matrix above. We have an accuracy of .96 which is better than our Naive model of .88. We looked to have predicted a true negative of 417 abd a true positive of .41. This accuracy is a bit alarming because it could be a sign of overfitting. 
+
+
+```{r}
+#Task 4 - neural network to predict parole violation
+
+start_time = Sys.time() #for timing
+fitControl2 = trainControl(method = "cv", 
+                           number = 10)
+
+nnetGrid =  expand.grid(size = seq(from = 1, to = 12, by = 1), 
+                        decay = seq(from = 0.1, to = 0.5, by = 0.1))
+set.seed(1234)
+nnetFit = train(violator ~ ., 
+                 train,
+                 method = "nnet",
+                 trControl = fitControl2,
+                 tuneGrid = nnetGrid,
+                 verbose = FALSE,
+                 trace = FALSE)
+
+end_time = Sys.time()
+end_time-start_time
+
+nnetFit
+
+```
+
+
+
+```{r}
+#Task 5 - Predictions on model from task 4
+
+predNet = predict(nnetFit, train)
+confusionMatrix(predNet, train$violator, positive = "Violation")
+
+```
+
+
+```{r}
+#Task 6 - predicting with model 2 on test
+
+predNetTest2 = predict(nnetBasic, test)
+
+confusionMatrix(predNetTest2, test$violator, positive = "Violation")
+
+
+```
+
+
+```{r}
+#Task 7 Predicing with model 4 on test
+
+predNetTest4 = predict(nnetFit, test)
+
+confusionMatrix(predNetTest4, test$violator, positive = "Violation")
+```
+
+
+For task 5 – The accuracy of predictions on model 4 was .90 with a specificity of .99. This is only two points higher than our naïve model. Our naïve model is .88
+
+
+For task 6 – The predictions with model two on the test dataset, has an accuracy of .88. this is less than our naïve model. This doesn’t necessarily equate to overfitting, but we might as well use the naïve model.
+
+
+For task 7 – The prediction model from task 4 with the testing dataset, had an accuracy of .87. Similar to our task 6 response this is less than the naïve model. 
+
+This leads me to believe that the model from task 2 had signs of overfitting. The only reason I say this, is the model had the strongest accuracy. The rest of the models were below the naive model's accuracy. 

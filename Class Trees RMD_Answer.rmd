@@ -1,0 +1,186 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Mack Ford
+## Assignment 1 - Module 4
+###2/11/19
+
+```{r}
+# install.packages("rattle")
+# install.packages("RColorBrewer")
+# install.packages("rpart")
+# install.packages("caret", dependencies = TRUE)
+# install.packages('e1071', dependencies = TRUE)
+library(tidyverse)
+library(caret)
+library(e1071)
+library(rpart)
+library(rattle)
+library(RColorBrewer)
+```
+
+```{r}
+#reading in data and cleaning
+parole <- read.csv("parole.csv")
+summary(parole)
+str(parole)
+
+#updating the data
+#male
+parole = parole %>% mutate(male = as_factor(as.factor(male))) %>%
+mutate(male = fct_recode(male,
+"female" = "0",
+"male" = "1"))
+
+#race
+parole = parole %>% mutate(race = as_factor(as.factor(race))) %>%
+mutate(race = fct_recode(race,
+"white" = "1",
+"other" = "2"))
+
+#state
+parole = parole %>% mutate(state = as_factor(as.factor(state))) %>%
+mutate(state = fct_recode(state,
+"other" = "1",
+"Kentucky" = "2",
+"Louisiana" = "3",
+"Virginia" = "4"))
+
+#crime
+parole = parole %>% mutate(crime = as_factor(as.factor(crime))) %>%
+mutate(crime = fct_recode(crime,
+"other" = "1",
+"Larceny" = "2",
+"durg-related" = "3",
+"driving-related" = "4"))
+
+#multiple offenses
+parole = parole %>% mutate(multiple.offenses = as_factor(as.factor(multiple.offenses))) %>%
+mutate(multiple.offenses = fct_recode(multiple.offenses,
+"other" = "0",
+"multiple" = "1"))
+
+#violator
+parole = parole %>% mutate(violator = as_factor(as.factor(violator))) %>%
+mutate(violator = fct_recode(violator,
+"No Violation" = "0",
+"Violation" = "1"))
+
+
+#Task1 - Splitting the data
+set.seed(12345)
+train.rows <- createDataPartition(y=parole$violator, p=0.7, list = FALSE)
+train<- parole[train.rows,]
+test <- parole[-train.rows,]
+
+
+```
+
+
+
+
+```{r}
+#Task 2
+tree1<- rpart(violator ~., train, method="class")
+fancyRpartPlot(tree1)
+
+```
+
+Task 3 -
+
+- For a 40 year old parolee from Louisiana who served a 5 year sentence. 
+
+
+    - No Violation
+    
+    
+    
+```{r}
+#Task 4
+plotcp(tree1)
+printcp(tree1)
+```
+
+
+For the CP value we could select 1 split or .0545. 
+
+```{r}
+#Task 5
+tree2 <- prune(tree1, cp=tree1$cptable[which.min(tree1$cptable[,"xerror"]),"CP"])
+```
+
+violator is the majority class in our training dataset. 
+
+
+```{r}
+#Task 6
+treepred = predict(tree1, train, type = "class")
+confusionMatrix(treepred, train$violator, positive="Violation")
+
+
+```
+
+```{r}
+#Task 7 Predictions for testing data w/ accuracy
+testpred = predict(tree1, test, type = "class")
+confusionMatrix(testpred, test$violator, positive="Violation")
+
+```
+
+Looking at the classification matrix above. Our Acuracy is similar to our training set. However with this testing data we can see that our accuracy is lower with this model, than with a naive model. the Pvalue is also larger than .05
+
+
+```{r}
+#Task 8 
+blood <- read.csv("Blood.csv")
+summary(blood)
+str(blood)
+
+blood <- blood %>% mutate(DonatedMarch = as_factor(as.factor(DonatedMarch))) %>%
+mutate(DonatedMarch = fct_recode(DonatedMarch,
+"No" = "0",
+"Yes" = "1"))
+```
+```{r}
+#Task 9 
+set.seed(1234)
+bloodTrain.rows <- createDataPartition(y=blood$DonatedMarch, p=0.7, list = FALSE)
+bTrain<- blood[bloodTrain.rows,]
+bTest <- blood[-bloodTrain.rows,]
+
+Btree1<- rpart(DonatedMarch ~., bTrain, method="class")
+fancyRpartPlot(Btree1)
+
+
+```
+
+
+```{r}
+plotcp(Btree1)
+printcp(Btree1)
+```
+
+The number of splits that gives us the lowest xerror is 6. with a CP of .01
+
+
+```{r}
+#Task 10
+Btree2 <- prune(Btree1, cp=Btree1$cptable[which.min(Btree1$cptable[,"xerror"]),"CP"])
+fancyRpartPlot(Btree2)
+
+
+Btreepred = predict(Btree2, bTrain, type = "class")
+confusionMatrix(Btreepred, bTrain$DonatedMarch, positive="Yes")
+```
+
+
+with our training dataset when we make predictions, our model is 80% accurate, which is more accurate than our Naive model. 
+```{r}
+Btreepred2 = predict(Btree2, bTest, type = "class")
+confusionMatrix(Btreepred2, bTest$DonatedMarch, positive="Yes")
+```
+
+
+On the Pruned Tree, with the test dataset when we make predictions, our model is 80% accurate, which is more accurate than our Naive model. It is the same as our model on the training set. This could indicate overfitting because of the similar numbers. 

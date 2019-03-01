@@ -1,0 +1,322 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Mack Ford
+## Assignment 2 - Week 3: Logistic Regression
+###2/5/19
+
+
+
+```{r}
+# install.packages("ROCR")
+library(ROCR)
+library(tidyverse)
+library(MASS)
+library(caret)
+```
+
+```{r}
+#reading in data and cleaning
+parole <- read.csv("parole.csv")
+summary(parole)
+str(parole)
+
+#updating the data
+#male
+parole = parole %>% mutate(male = as_factor(as.factor(male))) %>%
+mutate(male = fct_recode(male,
+"female" = "0",
+"male" = "1"))
+
+#race
+parole = parole %>% mutate(race = as_factor(as.factor(race))) %>%
+mutate(race = fct_recode(race,
+"white" = "1",
+"other" = "2"))
+
+#state
+parole = parole %>% mutate(state = as_factor(as.factor(state))) %>%
+mutate(state = fct_recode(state,
+"other" = "1",
+"Kentucky" = "2",
+"Louisiana" = "3",
+"Virginia" = "4"))
+
+#crime
+parole = parole %>% mutate(crime = as_factor(as.factor(crime))) %>%
+mutate(crime = fct_recode(crime,
+"other" = "1",
+"Larceny" = "2",
+"durg-related" = "3",
+"driving-related" = "4"))
+
+#multiple offenses
+parole = parole %>% mutate(multiple.offenses = as_factor(as.factor(multiple.offenses))) %>%
+mutate(multiple.offenses = fct_recode(multiple.offenses,
+"other" = "0",
+"multiple" = "1"))
+
+#violator
+parole = parole %>% mutate(violator = as_factor(as.factor(violator))) %>%
+mutate(violator = fct_recode(violator,
+"No Violation" = "0",
+"Violation" = "1"))
+
+```
+
+
+
+Now we will begin Logistic Regression(Classification Assignment)
+
+```{r}
+#Task1 - Splitting the data
+train.rows <- createDataPartition(y=parole$violator, p=0.7, list = FALSE)
+set.seed(12345)
+train<- parole[train.rows,]
+test <- parole[-train.rows,]
+
+
+#Task 2 - Visuals for predictor of violation
+
+#violator and Male
+ggplot(train, aes(male, fill = violator)) + geom_bar(position = "fill")
+
+t1 <- table(train$violator, train$male)
+prop.table(t1, margin = 2)
+```
+
+This data shows us that males are more likely to violate parole than females, but it is not by much. Male does not seem to be that strong of a predictor. We will continue to build models and test. 
+
+```{r}
+#Task 2 - Visuals for predictor of violation
+
+#violator and race
+ggplot(train, aes(race, fill = violator)) + geom_bar(position = "fill")
+
+t2 <- table(train$violator, train$race)
+prop.table(t2, margin = 2)
+```
+
+
+The data above leads us to believe that other races violate parole moer often than white. However these dont seem to be that strong of a predictor. 
+
+
+```{r}
+#Task 2 - Visuals for predictor of violation
+
+#violator and state
+ggplot(train, aes(state, fill = violator)) + geom_bar(position = "fill")
+
+t3 <- table(train$violator, train$state)
+prop.table(t3, margin = 2)
+```
+
+
+Based on the data above, we may have found our strongest predictor yet. State looks to be impacting the violation variable. Louisiana's prob, is much higher than the rest.
+
+
+
+```{r}
+#Task 2 - Visuals for predictor of violation
+
+#violator and crime
+ggplot(train, aes(crime, fill = violator)) + geom_bar(position = "fill")
+
+t4 <- table(train$violator, train$crime)
+prop.table(t4, margin = 2)
+```
+
+
+The type of crime does not seem to be a good predictor of violator. However other is higher than the rest. 
+
+```{r}
+#Task 2 - Visuals for predictor of violation
+
+#violator and multiple offense
+ggplot(train, aes(multiple.offenses, fill = violator)) + geom_bar(position = "fill")
+
+t5 <- table(train$violator, train$multiple.offenses)
+prop.table(t5, margin = 2)
+```
+
+
+Based on the data above. you are more likely to violate parole if you have multiple offenses, however it is not that strong of a predictor. 
+
+```{r}
+#Task 2 - Visuals for predictor of violation
+
+#violator and time served
+ggplot(train, aes(violator, time.served)) + geom_boxplot()
+
+```
+
+
+
+```{r}
+#Task 2 - Visuals for predictor of violation
+
+#violator and max sentence
+ggplot(train, aes(violator, max.sentence)) + geom_boxplot()
+```
+
+
+```{r}
+#Task 3 - Linear Model with "State"
+
+model1 <- glm(violator~state, train, family = "binomial")
+summary(model1)
+```
+
+This appears to be a valid model with an AIC of 272. as you can see from the "estimate std", Louisiana has a positive number and it is relatively high. Let's see what will happen with a forward stepwise model. 
+
+
+```{r}
+#Task 4 - Stepwise Models
+
+emptyMod <- glm(violator~1, train, family = "binomial")
+summary(emptyMod)
+
+allMod <- glm(violator~., train, family = "binomial")
+summary(allMod)
+```
+
+
+- An empty model gives us an AIC of 342, that can be our baseline. 
+
+
+- The all model gives us an AIC of 256. This is an improvement from 342. The significant variables are male, race$other, age, State$virginia, and multiple Offense
+
+
+```{r}
+#Task4 Forward stepwise
+forwardmod = stepAIC(emptyMod, direction = "forward", scope=list(upper=allMod,lower=emptyMod),trace = TRUE) 
+summary(forwardmod) 
+
+```
+
+
+- our Forward Stepwise model gives us a model that includes: State, multiple offenses, race, age, and max sentence. This model has an AIC of 252.28. The significant variables are Stateand stateVirigina, race and multiple offense. This seems like an intuitive model to me. These variables were the ones I was expecting to see. 
+
+
+```{r}
+#backward
+backmod = stepAIC(allMod, direction = "backward", trace = TRUE) 
+summary(backmod)
+
+
+```
+
+
+
+- This backwards model has resulted in the same model as the forward model. 
+
+
+```{r}
+#Task 5 - LM model 
+glmMod1 <- glm(violator ~ state + race + multiple.offenses, family = "binomial", data = train)
+summary(glmMod1)
+```
+
+
+The Stepwise models we developed had an AIC of 252.28 and this model has an AIC of 522.42. The variables that are significant are: Race, multiple offense and State and stateVirigina. Just a little bit off without max sentence and age
+
+
+```{r}
+#Task 6 Predicted Probabaility 
+
+parolee1 = data.frame(state = "Louisiana", race = "white", multiple.offenses = "multiple")
+predict(glmMod1, parolee1, type = "response")
+
+parolee2 = data.frame(state = "Kentucky", race = "other", multiple.offenses = "other")
+predict(glmMod1, parolee2, type = "response")
+
+```
+
+
+- The probability for Parolee 1 is .41
+
+
+- The probability for Parolee 2 is .12
+
+
+```{r}
+#Task 7 ROC Curve
+
+Predictions <- predict(glmMod1, type = "response")
+head(Predictions)
+
+ROCRpred <-prediction(Predictions, train$violator) 
+
+ROCRperf<-performance(ROCRpred, "tpr", "fpr")
+plot(ROCRperf, colorize=TRUE, print.cutoffs.at=seq(0,1,by=0.1), text.adj=c(-0.2,1.7))
+
+as.numeric(performance(ROCRpred, "auc")@y.values)
+
+```
+
+
+```{r}
+#Task 8, Accuracy, Sensitivity, Specificity
+
+opt.cut = function(perf, pred){
+    cut.ind = mapply(FUN=function(x, y, p){
+        d = (x - 0)^2 + (y-1)^2
+        ind = which(d == min(d))
+        c(sensitivity = y[[ind]], specificity = 1-x[[ind]], 
+            cutoff = p[[ind]])
+    }, perf@x.values, perf@y.values, pred@cutoffs)
+}
+print(opt.cut(ROCRperf, ROCRpred))
+
+```
+
+Given the cutoff of .1391259. we have a sensitivity of .7454545 and a specificity of .8157895
+
+Next we are going to calculate the accuracy
+
+```{r}
+#Task 8 
+
+#confusion matrix
+t6 = table(train$violator,Predictions > 0.1391259)
+t6
+```
+ 
+```{r}
+#Calculate accuracy 
+(t6[1,1]+t6[2,2])/nrow(train)
+```
+
+The model looks to have an accuracy of .83 
+
+```{r}
+#Task 9 #apply trial and error to maximize accuracy 
+t7 = table(train$violator,Predictions > 0.5)
+t7
+(t7[1,1]+t7[2,2])/nrow(train)
+```
+
+
+```{r}
+t8 = table(train$violator,Predictions > 0.3)
+t8
+(t8[1,1]+t8[2,2])/nrow(train)
+```
+
+```
+```{r}
+t9 = table(train$violator,Predictions > 1)
+t9
+(t9[1])/nrow(train)
+```
+
+
+
+The probability threshold that  maximizes accuracy is .3. However I saw the same accuracy when I did .3, .4, .5, and .6. 
+
+```{r}
+
+```
+

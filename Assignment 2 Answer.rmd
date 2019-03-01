@@ -1,0 +1,114 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+#Mack Ford
+##Assignment 2 - Module 4
+### 2/12/19
+
+```{r}
+# install.packages("ranger")
+library(ranger)
+library(tidyverse)
+library(caret)
+
+blood <- read.csv("Blood.csv")
+summary(blood)
+str(blood)
+
+blood <- blood %>% mutate(DonatedMarch = as_factor(as.factor(DonatedMarch))) %>%
+mutate(DonatedMarch = fct_recode(DonatedMarch,
+"No" = "0",
+"Yes" = "1"))
+
+set.seed(1234)
+train.rows <- createDataPartition(y=blood$DonatedMarch, p=0.7, list = FALSE)
+train<- blood[train.rows,]
+test <- blood[-train.rows,]
+
+
+```
+
+
+```{r}
+#Task 2 
+fit_control = trainControl(method = "cv",  
+                           number = 10) 
+
+set.seed(123)  
+rf_fit = train(DonatedMarch ~.,    
+                 data = train,   
+                 method = "ranger",  
+                 importance = "permutation", 
+                 num.trees = 100,
+                 trControl = fit_control)
+
+# Viewing the Forest
+varImp(rf_fit)
+rf_fit
+
+
+```
+
+
+- Total Donations is the most important variable. 
+
+
+- Least important is Months Since First
+
+
+```{r}
+# Predictions
+
+predRF = predict(rf_fit, train)
+head(predRF)
+
+
+# COnfusion Matrix
+confusionMatrix(predRF, train$DonatedMarch, positive = "Yes")
+
+```
+
+
+- Accuracy = 89.5%
+
+
+- Sensitivity = .60
+
+
+- Specificity = .9875
+
+
+- The Accuracy of this model is higher than a naive model. We can see from this a naive model's accuracy is 76%
+
+
+```{r}
+# Predictions
+
+TestpredRF = predict(rf_fit, test)
+head(predRF)
+
+
+# COnfusion Matrix
+confusionMatrix(TestpredRF, test$DonatedMarch, positive = "Yes")
+```
+
+- Accuracy = is 79%
+
+  
+    - Compared to the training data sets model of 89.5%
+
+
+- Sensitivity = .22
+
+    - Compared to the training data set model of .60
+
+
+- Specificity = .95
+
+    - Compared to the training data set model of .9875
+
+
+- The Accuracy of this model is much lower than the training dataset. It is a tad bit higher than a naive model. While this model is not as effective as our model with the training data set. It is still a better model than the naive model. 
+

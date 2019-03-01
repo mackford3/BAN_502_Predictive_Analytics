@@ -1,0 +1,207 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+# Mack Ford
+## Assignment 2 - MLR
+### 1/29/19
+
+```{r}
+#Loading Packages & Read in Data
+library(tidyverse)
+library(GGally)
+library(MASS)
+#install.packages("leaps")
+library(leaps)
+
+bike<- read_csv("hour.csv")
+glimpse(bike)
+
+```
+
+
+```{r}
+#Task 1 Updating the data
+bike = bike %>% mutate(season = as_factor(as.character(season))) %>%
+mutate(season = fct_recode(season,
+"Spring" = "1",
+"Summer" = "2",
+"Fall" = "3",
+"Winter" = "4"))
+
+#Updating Year to Factor
+bike = bike %>% mutate(yr = as_factor(as.character(yr)))
+
+#Updating mnth to factor
+bike = bike %>% mutate(mnth = as_factor(as.character(mnth)))
+
+#Updating hour to factor
+bike = bike %>% mutate(hr = as_factor(as.character(hr)))
+
+#updating Holiday to a factor and renaming
+bike = bike %>% mutate(holiday = as_factor(as.character(holiday))) %>%
+mutate(holiday = fct_recode(holiday,
+"NotHoliday" = "0",
+"Holiday" = "1"))
+
+#updating Working Day to a factor and renaming
+bike = bike %>% mutate(workingday = as_factor(as.character(workingday))) %>%
+mutate(workingday = fct_recode(workingday,
+"NotWorkingDay" = "0",
+"WorkingDay" = "1"))
+
+#updating weathersit to a factor and renaming
+bike = bike %>% mutate(weathersit = as_factor(as.character(weathersit))) %>%
+mutate(weathersit = fct_recode(weathersit,
+"NoPrecip" = "1",
+"Misty" = "2",
+"LightPrecip" = "3",
+"HeavyPrecip" = "4"))
+
+#updating weekday to a factor and renaming
+bike = bike %>% mutate(weekday = as_factor(as.character(weekday))) %>%
+mutate(weekday = fct_recode(weekday,
+"Monday" = "1",
+"Tuesday" = "2",
+"Wednesday" = "3",
+"Thursday" = "4",
+"Friday" = "5",
+"Saturday" = "6",
+"Sunday" = "0"))
+
+glimpse(bike)
+```
+
+We store these object as factors because, factors and integers behave differently in statistical models. Factors are stored as a vector of 
+integer values with a corresponding set of character values. Factors contian levels
+
+```{r}
+#Task 2
+ggpairs(bike, columns=c(11:14,17))
+```
+
+Positively Temp is most closely correlated with count. The next most is Atemp. Negatively correlated is hum.
+
+```{r}
+#task 3 Categorical variable analysis
+#season<- impacts count
+ggplot(bike,aes(x=season,y=count)) + geom_boxplot() + theme_bw()
+
+#hour <- impacts count
+ggplot(bike,aes(x=hr,y=count)) + geom_boxplot() + theme_bw()
+
+#weathersit <- impacts count
+ggplot(bike,aes(x=weathersit,y=count)) + geom_boxplot() + theme_bw()
+
+#holiday <- impacts count
+ggplot(bike,aes(x=holiday,y=count)) + geom_boxplot() + theme_bw()
+
+#weekday <- impacts count
+ggplot(bike,aes(x=weekday,y=count)) + geom_boxplot() + theme_bw()
+
+#Workingday <- impacts count
+ggplot(bike,aes(x=workingday,y=count)) + geom_boxplot() + theme_bw()
+
+
+
+```
+
+
+I believe the following categorical variables impact count: Season, Hour, holiday, weekday, workingday, weathersit
+
+###Heavy hitters
+1. Season: You can see via the boxplot that the count rises during the summer and fall times, and starts to trickle back down during winter. 
+
+2. Hour: Looks like we see our numbers low during the sleeping hours, but before work and after work we see the numbers rise
+
+3.Weathersit: You can tell that weathersit will have a strong correlation with count. People don't tend to ride bikes in the rain. 
+
+###Some Correlation
+4. Holiday: I dont think holiday is a significant factor of count, but it does show that during the holiday times we see less riders. That could be because they are busier during those times
+
+5. Weekday: I also dont think we have a significant predictor with weekday, but it does tell us a good story. During the week you see the numbers climb till Friday. Then saturday and sunday we see the median and count lower than normal
+
+6. Workingday: I dont think this is a major predictor of Count, but like holiday and week day there is some correlation. You can seee on a working day we have more riders than normal, this could be because they want to ride after or before work to releive stress. 
+
+```{r}
+#Task 4 - all model and sub data
+bikeSub1 <- bike[-c(1,2,15,16)]
+
+allMod <- lm(count~.,bikeSub1)
+summary(allMod)
+```
+```{r}
+#Task4 Cont - empty model
+emptyMod <- lm(count~1,bikeSub1)
+summary(emptyMod)
+```
+```{r}
+#Task 4 - Forward stepwise
+forwardmod <- stepAIC(emptyMod, direction = "forward", scope = list(upper=allMod,lower=emptyMod), trace = TRUE)
+summary(forwardmod)
+
+```
+
+The variables that are in the model include: 
+
+1. hr
+2. atemp
+3. year
+4. weathersit
+5. season
+6. mnth
+7. hum
+8. weekday
+9. holiday
+10. windspeed
+11. temp
+
+These are variables that I would expect to see in our model. I would have left out temp if I included atemp, and I would have thought that Year would not be included as well. This does look to be a decent model if we look at the adjusted R squared and P value. We have an adjusted R-squared value of .06854, which means it is a decent model. We also have a Pvalue of less than .05. Let's see what the backwards model gives us
+
+
+
+
+```{r}
+#Task 5 - Backward
+backmod = stepAIC(allMod,direction = "backward", trace = TRUE)
+summary(backmod)
+```
+
+For this backwards model we have variables: 
+
+1. season
+2. yr
+3. mnth
+4. hr
+5. holiday
+6. weekday
+7. weathersit
+8. temp
+9. atemp
+10. hum
+11. windspeed
+
+These variables are the same as we see in the Forward stepwise model. We also have the same adjusted Rsquared and Pvalue. 
+
+The model is smart enough to know that workingday is storngly related to other variables in this model, so working day is left out. Workingday is represented by weekday, and possibly hour as well. The system can tell that monday through friday is considered a working day.
+
+```{r}
+#Task 6
+bikeSub2 = bikeSub1 %>% mutate(yr = as.integer(yr)-1)
+
+#All Mod for year as Integer
+AllModYR <- lm(count~.,bikeSub2)
+summary(AllModYR)
+
+#Empty Mod for Year as Integer
+emptyModYR <- lm(count~1, bikeSub2)
+summary(emptyModYR)
+
+#Forward Stepwise
+ForwardmodYR<- stepAIC(emptyModYR, direction = "forward", scope = list(upper=AllModYR,lower=emptyModYR), trace = TRUE)
+summary(ForwardmodYR)
+```
+
+
+Overall this model doesn't change from the previous two models. However now some of the pvalues (*, **, ***) have changed. 
